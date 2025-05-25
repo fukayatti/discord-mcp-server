@@ -13,7 +13,9 @@ A **Model Context Protocol (MCP)** server that provides comprehensive Discord in
 ### 💬 Message Operations
 
 - **Send Messages**: Post messages to any accessible channel
-- **Read Messages**: Retrieve message history with reactions
+- **Read Messages**: Retrieve message history with reactions and pagination support
+- **Bulk Message Reading**: Automatically fetch large amounts of messages with unlimited support
+- **Message Pagination**: Navigate through message history using before/after/around parameters
 - **Message Moderation**: Delete inappropriate content and manage users
 - **Reaction Management**: Add, remove, and manage message reactions
 
@@ -151,6 +153,9 @@ If you installed via npm or want to use without global install, configure as fol
 ```
 "Send a welcome message to the #general channel"
 "Read the last 20 messages from #announcements"
+"Read all messages from #general channel (unlimited)"
+"Get messages before message ID 1234567890 for pagination"
+"Fetch 500 messages from #discussion using bulk reading"
 "Add a 👍 reaction to message ID 1234567890"
 ```
 
@@ -187,23 +192,57 @@ If you installed via npm or want to use without global install, configure as fol
 
 ## 🛠️ Available Tools
 
-| Tool                     | Description                 | Parameters                                                                |
-| ------------------------ | --------------------------- | ------------------------------------------------------------------------- |
-| `get_server_info`        | Get server information      | `server` (optional)                                                       |
-| `list_members`           | List server members         | `server` (optional), `limit`                                              |
-| `send_message`           | Send message to channel     | `server` (optional), `channel`, `content`                                 |
-| `read_messages`          | Read message history        | `server` (optional), `channel`, `limit`                                   |
-| `add_reaction`           | Add reaction to message     | `server` (optional), `channel`, `message_id`, `emoji`                     |
-| `add_multiple_reactions` | Add multiple reactions      | `server` (optional), `channel`, `message_id`, `emojis`                    |
-| `remove_reaction`        | Remove reaction             | `server` (optional), `channel`, `message_id`, `emoji`                     |
-| `moderate_message`       | Delete and timeout          | `server` (optional), `channel`, `message_id`, `reason`, `timeout_minutes` |
-| `create_text_channel`    | Create new channel          | `server` (optional), `name`, `category_id`, `topic`                       |
-| `delete_channel`         | Delete channel              | `server` (optional), `channel`, `reason`                                  |
-| `list_category_channels` | List channels in category   | `server` (optional), `category`                                           |
-| `read_category_channels` | Read from category channels | `server` (optional), `category`, `limit`                                  |
-| `add_role`               | Add role to user            | `server` (optional), `user_id`, `role_id`                                 |
-| `remove_role`            | Remove role from user       | `server` (optional), `user_id`, `role_id`                                 |
-| `get_user_info`          | Get user information        | `user_id`                                                                 |
+| Tool                     | Description                                  | Parameters                                                                |
+| ------------------------ | -------------------------------------------- | ------------------------------------------------------------------------- |
+| `get_server_info`        | Get server information                       | `server` (optional)                                                       |
+| `list_members`           | List server members                          | `server` (optional), `limit`                                              |
+| `send_message`           | Send message to channel                      | `server` (optional), `channel`, `content`                                 |
+| `read_messages`          | Read message history with pagination         | `server` (optional), `channel`, `limit`, `before`, `after`, `around`      |
+| `read_messages_bulk`     | Read large amounts of messages automatically | `server` (optional), `channel`, `total_limit`, `unlimited`                |
+| `add_reaction`           | Add reaction to message                      | `server` (optional), `channel`, `message_id`, `emoji`                     |
+| `add_multiple_reactions` | Add multiple reactions                       | `server` (optional), `channel`, `message_id`, `emojis`                    |
+| `remove_reaction`        | Remove reaction                              | `server` (optional), `channel`, `message_id`, `emoji`                     |
+| `moderate_message`       | Delete and timeout                           | `server` (optional), `channel`, `message_id`, `reason`, `timeout_minutes` |
+| `create_text_channel`    | Create new channel                           | `server` (optional), `name`, `category_id`, `topic`                       |
+| `delete_channel`         | Delete channel                               | `server` (optional), `channel`, `reason`                                  |
+| `list_category_channels` | List channels in category                    | `server` (optional), `category`                                           |
+| `read_category_channels` | Read from category channels                  | `server` (optional), `category`, `limit`                                  |
+| `add_role`               | Add role to user                             | `server` (optional), `user_id`, `role_id`                                 |
+| `remove_role`            | Remove role from user                        | `server` (optional), `user_id`, `role_id`                                 |
+| `get_user_info`          | Get user information                         | `user_id`                                                                 |
+
+## 📖 Advanced Message Reading Features
+
+### Pagination Support
+
+The `read_messages` tool now supports pagination parameters:
+
+- **`before`**: Get messages sent before a specific message ID
+- **`after`**: Get messages sent after a specific message ID
+- **`around`**: Get messages around a specific message ID
+
+### Unlimited Message Reading
+
+The `read_messages_bulk` tool enables reading large amounts of messages:
+
+- **`total_limit`**: Specify the total number of messages to fetch (automatically paginated)
+- **`unlimited: true`**: Fetch all available messages in a channel/thread
+- **`total_limit: -1`**: Alternative way to enable unlimited reading
+
+### Thread Support
+
+All message reading tools now support Discord threads:
+
+- Use thread ID as the channel parameter
+- Read messages from both regular channels and threads seamlessly
+
+### No Artificial Limits
+
+All previous artificial limits have been removed:
+
+- `read_messages`: No longer limited to 100 messages per request
+- `read_category_channels`: No longer limited to 50 messages per channel
+- Only Discord API's internal limits apply (100 messages per API call, automatically handled)
 
 ## 🔒 Required Bot Permissions
 

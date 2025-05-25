@@ -56,7 +56,7 @@ async function findGuild(guildIdentifier) {
       .map((g) => `"${g.name}"`)
       .join(", ");
     throw new Error(
-      `Bot is in multiple servers. Please specify server name or ID. Available servers: ${guildList}`
+      `I'm in multiple Discord servers! Please tell me which one you want to use. Available servers: ${guildList}`
     );
   }
 
@@ -75,7 +75,7 @@ async function findGuild(guildIdentifier) {
         .map((g) => `"${g.name}"`)
         .join(", ");
       throw new Error(
-        `Server "${guildIdentifier}" not found. Available servers: ${availableGuilds}`
+        `I can't find a server called "${guildIdentifier}". Here are the servers I'm in: ${availableGuilds}`
       );
     }
     if (guilds.size > 1) {
@@ -89,7 +89,7 @@ async function findGuild(guildIdentifier) {
   throw new Error(`Server "${guildIdentifier}" not found`);
 }
 
-// Helper function to find a channel by name or ID within a specific guild (excludes threads)
+// Helper function to find a channel by name or ID within a specific guild (includes threads)
 async function findChannel(channelIdentifier, guildIdentifier) {
   const client = requireDiscordClient();
 
@@ -104,7 +104,7 @@ async function findChannel(channelIdentifier, guildIdentifier) {
         channel &&
         channel.guild &&
         channel.guild.id === guild.id &&
-        !channel.isThread()
+        channel.isTextBased()
       ) {
         return channel;
       }
@@ -113,7 +113,6 @@ async function findChannel(channelIdentifier, guildIdentifier) {
       const channels = guild.channels.cache.filter(
         (channel) =>
           channel.isTextBased() &&
-          !channel.isThread() &&
           (channel.name.toLowerCase() === channelIdentifier.toLowerCase() ||
             channel.name.toLowerCase() ===
               channelIdentifier.toLowerCase().replace("#", ""))
@@ -121,11 +120,11 @@ async function findChannel(channelIdentifier, guildIdentifier) {
 
       if (channels.size === 0) {
         const availableChannels = guild.channels.cache
-          .filter((c) => c.isTextBased() && !c.isThread())
+          .filter((c) => c.isTextBased())
           .map((c) => `"#${c.name}"`)
           .join(", ");
         throw new Error(
-          `Channel "${channelIdentifier}" not found in server "${guild.name}". Available channels: ${availableChannels}`
+          `I can't find a channel called "${channelIdentifier}" in ${guild.name}. Here are the channels I can see: ${availableChannels}`
         );
       }
       if (channels.size > 1) {
@@ -146,12 +145,10 @@ async function findChannel(channelIdentifier, guildIdentifier) {
   // If no guild specified, try to fetch by ID directly
   try {
     const channel = await client.channels.fetch(channelIdentifier);
-    if (channel && channel.isTextBased() && !channel.isThread()) {
+    if (channel && channel.isTextBased()) {
       return channel;
     }
-    throw new Error(
-      `Channel "${channelIdentifier}" is not a text channel or is a thread`
-    );
+    throw new Error(`Channel "${channelIdentifier}" is not a text channel`);
   } catch {
     throw new Error(
       `Channel "${channelIdentifier}" not found. When using channel names, please also specify the server.`
@@ -213,7 +210,9 @@ const SendMessageSchema = z.object({
     .string()
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
-  channel: z.string().describe('Channel name (e.g., "general") or ID'),
+  channel: z
+    .string()
+    .describe('Channel name (e.g., "general") or ID (including threads)'),
   content: z.string().describe("Message content"),
 });
 
@@ -222,8 +221,45 @@ const ReadMessagesSchema = z.object({
     .string()
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
-  channel: z.string().describe('Channel name (e.g., "general") or ID'),
+  channel: z
+    .string()
+    .describe('Channel name (e.g., "general") or ID (including threads)'),
   limit: z.number().min(1).default(50),
+  before: z
+    .string()
+    .optional()
+    .describe("Message ID to fetch messages before (for pagination)"),
+  after: z
+    .string()
+    .optional()
+    .describe("Message ID to fetch messages after (for pagination)"),
+  around: z
+    .string()
+    .optional()
+    .describe("Message ID to fetch messages around (for pagination)"),
+});
+
+const ReadMessagesBulkSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z
+    .string()
+    .describe('Channel name (e.g., "general") or ID (including threads)'),
+  total_limit: z
+    .number()
+    .min(1)
+    .default(200)
+    .describe(
+      "Total number of messages to fetch (will be fetched in batches of 100). Set to -1 for unlimited"
+    ),
+  unlimited: z
+    .boolean()
+    .optional()
+    .describe(
+      "Set to true to fetch all available messages (ignores total_limit)"
+    ),
 });
 
 const ReactionSchema = z.object({
@@ -231,7 +267,9 @@ const ReactionSchema = z.object({
     .string()
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
-  channel: z.string().describe('Channel name (e.g., "general") or ID'),
+  channel: z
+    .string()
+    .describe('Channel name (e.g., "general") or ID (including threads)'),
   message_id: z.string().describe("Message ID"),
   emoji: z.string().describe("Emoji to react with"),
 });
@@ -241,7 +279,9 @@ const MultipleReactionSchema = z.object({
     .string()
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
-  channel: z.string().describe('Channel name (e.g., "general") or ID'),
+  channel: z
+    .string()
+    .describe('Channel name (e.g., "general") or ID (including threads)'),
   message_id: z.string().describe("Message ID"),
   emojis: z.array(z.string()).describe("Array of emojis to react with"),
 });
@@ -251,7 +291,9 @@ const ModerateMessageSchema = z.object({
     .string()
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
-  channel: z.string().describe('Channel name (e.g., "general") or ID'),
+  channel: z
+    .string()
+    .describe('Channel name (e.g., "general") or ID (including threads)'),
   message_id: z.string().describe("Message ID"),
   reason: z.string().describe("Reason for moderation"),
   timeout_minutes: z
@@ -268,7 +310,7 @@ const CategoryChannelsSchema = z.object({
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
   category: z.string().describe("Category name or ID"),
-  limit: z.number().min(1).max(50).default(10).optional(),
+  limit: z.number().min(1).default(10).optional(),
 });
 
 // Initialize MCP server
@@ -291,21 +333,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // Server Information Tools
       {
         name: "get_server_info",
-        description: "Get information about a Discord server",
+        description:
+          "Show me information about this Discord server including member count, creation date, and settings",
         inputSchema: {
           type: "object",
           properties: {
             server: {
               type: "string",
               description:
-                "Server name or ID (optional if bot is only in one server)",
+                "Which Discord server? (leave empty if I'm only in one server)",
             },
           },
         },
       },
       {
         name: "list_members",
-        description: "Get a list of members in a server",
+        description:
+          "Show me all the members in this Discord server with their roles and join dates",
         inputSchema: {
           type: "object",
           properties: {
@@ -328,7 +372,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "list_category_channels",
         description:
-          "List all channels in a specified category (excludes threads)",
+          "Show me all the channels in a specific category, like 'General' or 'Gaming'",
         inputSchema: {
           type: "object",
           properties: {
@@ -348,7 +392,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "read_category_channels",
         description:
-          "Read recent messages from all channels in a category (excludes threads)",
+          "Read recent messages from all channels in a category like 'Support' or 'Development'",
         inputSchema: {
           type: "object",
           properties: {
@@ -363,9 +407,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             limit: {
               type: "number",
-              description: "Number of messages to fetch per channel (max 50)",
+              description: "Number of messages to fetch per channel",
               minimum: 1,
-              maximum: 50,
               default: 10,
             },
           },
@@ -376,7 +419,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // Role Management Tools
       {
         name: "add_role",
-        description: "Add a role to a user",
+        description: "Give a role like 'Moderator' or 'VIP' to a specific user",
         inputSchema: {
           type: "object",
           properties: {
@@ -399,7 +442,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "remove_role",
-        description: "Remove a role from a user",
+        description:
+          "Take away a role like 'Member' or 'Helper' from a specific user",
         inputSchema: {
           type: "object",
           properties: {
@@ -424,7 +468,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // Channel Management Tools
       {
         name: "create_text_channel",
-        description: "Create a new text channel",
+        description:
+          "Create a new text channel with a custom name and optional topic",
         inputSchema: {
           type: "object",
           properties: {
@@ -451,7 +496,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "delete_channel",
-        description: "Delete a channel",
+        description:
+          "Delete a channel permanently (be careful - this cannot be undone)",
         inputSchema: {
           type: "object",
           properties: {
@@ -462,7 +508,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
             },
             reason: {
               type: "string",
@@ -476,7 +523,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // Message Reaction Tools
       {
         name: "add_reaction",
-        description: "Add a reaction to a message",
+        description:
+          "Add an emoji reaction like 👍, ❤️, or 😂 to a specific message",
         inputSchema: {
           type: "object",
           properties: {
@@ -487,7 +535,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
             },
             message_id: {
               type: "string",
@@ -503,7 +552,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "add_multiple_reactions",
-        description: "Add multiple reactions to a message",
+        description:
+          "Add several emoji reactions at once to a message, like 👍❤️😂",
         inputSchema: {
           type: "object",
           properties: {
@@ -514,7 +564,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
             },
             message_id: {
               type: "string",
@@ -534,7 +585,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "remove_reaction",
-        description: "Remove a reaction from a message",
+        description:
+          "Remove my emoji reaction from a message (like undoing a 👍)",
         inputSchema: {
           type: "object",
           properties: {
@@ -545,7 +597,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
             },
             message_id: {
               type: "string",
@@ -561,7 +614,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "send_message",
-        description: "Send a message to a specific channel",
+        description:
+          "Send a text message to any channel like #general, #announcements, or a thread",
         inputSchema: {
           type: "object",
           properties: {
@@ -572,11 +626,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Which channel? (like 'general', 'announcements', or a thread name)",
             },
             content: {
               type: "string",
-              description: "Message content",
+              description: "What message do you want to send?",
             },
           },
           required: ["channel", "content"],
@@ -584,7 +639,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "read_messages",
-        description: "Read recent messages from a channel",
+        description:
+          "Read recent messages from any channel or thread - specify how many you want to see",
         inputSchema: {
           type: "object",
           properties: {
@@ -595,12 +651,62 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
             },
             limit: {
               type: "number",
-              description: "Number of messages to fetch (no maximum limit)",
+              description:
+                "How many messages do you want to read? (e.g., 10, 50, 100)",
               minimum: 1,
+            },
+            before: {
+              type: "string",
+              description:
+                "Message ID to fetch messages before (for pagination)",
+            },
+            after: {
+              type: "string",
+              description:
+                "Message ID to fetch messages after (for pagination)",
+            },
+            around: {
+              type: "string",
+              description:
+                "Message ID to fetch messages around (for pagination)",
+            },
+          },
+          required: ["channel"],
+        },
+      },
+      {
+        name: "read_messages_bulk",
+        description:
+          "Read ALL messages from a channel or thread - can fetch hundreds or thousands of messages automatically",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
+            },
+            total_limit: {
+              type: "number",
+              description:
+                "How many messages in total? (e.g., 500, 1000, or -1 for ALL messages)",
+              minimum: 1,
+              default: 200,
+            },
+            unlimited: {
+              type: "boolean",
+              description:
+                "Want ALL messages ever sent in this channel? Set this to true",
             },
           },
           required: ["channel"],
@@ -608,7 +714,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get_user_info",
-        description: "Get information about a Discord user",
+        description:
+          "Look up detailed information about any Discord user by their ID",
         inputSchema: {
           type: "object",
           properties: {
@@ -622,7 +729,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "moderate_message",
-        description: "Delete a message and optionally timeout the user",
+        description:
+          "Delete inappropriate messages and optionally put the user in timeout",
         inputSchema: {
           type: "object",
           properties: {
@@ -633,7 +741,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             channel: {
               type: "string",
-              description: "Channel name (e.g., 'general') or ID",
+              description:
+                "Channel name (e.g., 'general') or ID (including threads)",
             },
             message_id: {
               type: "string",
@@ -672,18 +781,122 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: "text",
-              text: `Message sent successfully to #${channelObj.name} in ${channelObj.guild.name}. Message ID: ${message.id}`,
+              text: `✅ Your message has been sent to #${channelObj.name} in ${channelObj.guild.name}!`,
             },
           ],
         };
       }
 
       case "read_messages": {
-        const { server, channel, limit } = ReadMessagesSchema.parse(args);
+        const { server, channel, limit, before, after, around } =
+          ReadMessagesSchema.parse(args);
         const channelObj = await findChannel(channel, server);
-        const messages = await channelObj.messages.fetch({ limit });
+
+        // Build fetch options with pagination parameters
+        const fetchOptions = { limit };
+        if (before) fetchOptions.before = before;
+        if (after) fetchOptions.after = after;
+        if (around) fetchOptions.around = around;
+
+        const messages = await channelObj.messages.fetch(fetchOptions);
 
         const messageList = Array.from(messages.values()).map((message) => {
+          const reactionData = message.reactions.cache.map((reaction) => ({
+            emoji:
+              reaction.emoji.name ||
+              reaction.emoji.id ||
+              reaction.emoji.toString(),
+            count: reaction.count,
+          }));
+
+          return {
+            id: message.id,
+            author: message.author.tag,
+            content: message.content,
+            timestamp: message.createdAt.toISOString(),
+            reactions: reactionData,
+          };
+        });
+
+        const formatReaction = (r) => `${r.emoji}(${r.count})`;
+
+        // Get the oldest and newest message IDs for pagination info
+        const oldestMessage =
+          messageList.length > 0 ? messageList[messageList.length - 1] : null;
+        const newestMessage = messageList.length > 0 ? messageList[0] : null;
+
+        let paginationInfo = "";
+        if (messageList.length > 0) {
+          paginationInfo =
+            `\n\nPagination Info:\n` +
+            `- To get older messages, use: before=${oldestMessage.id}\n` +
+            `- To get newer messages, use: after=${newestMessage.id}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Retrieved ${messageList.length} messages from #${channelObj.name} in ${channelObj.guild.name}:\n\n` +
+                messageList
+                  .map(
+                    (m) =>
+                      `[${m.id}] ${m.author} (${m.timestamp}): ${m.content}\n` +
+                      `Reactions: ${
+                        m.reactions.length > 0
+                          ? m.reactions.map(formatReaction).join(", ")
+                          : "No reactions"
+                      }`
+                  )
+                  .join("\n\n") +
+                paginationInfo,
+            },
+          ],
+        };
+      }
+
+      case "read_messages_bulk": {
+        const { server, channel, total_limit, unlimited } =
+          ReadMessagesBulkSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+
+        let allMessages = [];
+        let before = null;
+        let remainingLimit =
+          unlimited || total_limit === -1 ? Infinity : total_limit;
+
+        while (remainingLimit > 0) {
+          const batchLimit =
+            unlimited || total_limit === -1
+              ? 100
+              : Math.min(remainingLimit, 100);
+          const fetchOptions = { limit: batchLimit };
+          if (before) fetchOptions.before = before;
+
+          const messages = await channelObj.messages.fetch(fetchOptions);
+          const messageArray = Array.from(messages.values());
+
+          if (messageArray.length === 0) {
+            break; // No more messages to fetch
+          }
+
+          allMessages = allMessages.concat(messageArray);
+
+          if (!unlimited && total_limit !== -1) {
+            remainingLimit -= messageArray.length;
+          }
+
+          // Set the before parameter to the ID of the oldest message in this batch
+          before = messageArray[messageArray.length - 1].id;
+
+          // If we got fewer messages than requested, we've reached the end
+          if (messageArray.length < batchLimit) {
+            break;
+          }
+        }
+
+        const messageList = allMessages.map((message) => {
           const reactionData = message.reactions.cache.map((reaction) => ({
             emoji:
               reaction.emoji.name ||
@@ -708,11 +921,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text:
-                `Retrieved ${messageList.length} messages from #${channelObj.name} in ${channelObj.guild.name}:\n\n` +
+                `Retrieved ${messageList.length} messages from #${channelObj.name} in ${channelObj.guild.name} (requested: ${total_limit}):\n\n` +
                 messageList
                   .map(
                     (m) =>
-                      `${m.author} (${m.timestamp}): ${m.content}\n` +
+                      `[${m.id}] ${m.author} (${m.timestamp}): ${m.content}\n` +
                       `Reactions: ${
                         m.reactions.length > 0
                           ? m.reactions.map(formatReaction).join(", ")
@@ -779,7 +992,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         for (const channel of channels.values()) {
           try {
             const messages = await channel.messages.fetch({
-              limit: Math.min(limit, 50),
+              limit: limit,
             });
             const messageList = Array.from(messages.values()).map(
               (message) => ({
