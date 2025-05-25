@@ -1,6 +1,6 @@
 {
   "name": "@fukayatti0/discord-mcp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Discord integration for Model Context Protocol",
   "main": "src/server.js",
   "type": "module",
@@ -30,7 +30,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/fukayatti/@fukayatti0/discord-mcp-server.git"
+    "url": "https://github.com/fukayatti/discord-mcp-server.git"
   },
   "homepage": "https://fukayatti0.dev/"
 }
