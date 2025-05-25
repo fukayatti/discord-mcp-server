@@ -1,6 +1,6 @@
 {
   "name": "@fukayatti0/discord-mcp-server",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Discord integration for Model Context Protocol",
   "main": "src/server.js",
   "type": "module",

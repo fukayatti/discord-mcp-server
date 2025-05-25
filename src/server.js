@@ -223,7 +223,7 @@ const ReadMessagesSchema = z.object({
     .optional()
     .describe("Server name or ID (optional if bot is only in one server)"),
   channel: z.string().describe('Channel name (e.g., "general") or ID'),
-  limit: z.number().min(1).max(100).default(50),
+  limit: z.number().min(1).default(50),
 });
 
 const ReactionSchema = z.object({
@@ -599,9 +599,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             limit: {
               type: "number",
-              description: "Number of messages to fetch (max 100)",
+              description: "Number of messages to fetch (no maximum limit)",
               minimum: 1,
-              maximum: 100,
             },
           },
           required: ["channel"],
