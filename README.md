@@ -44,22 +44,36 @@ A **Model Context Protocol (MCP)** server that provides comprehensive Discord in
 
 ## 🔧 Installation
 
+### Install via npm (Recommended)
+
+You can install the server directly from npm:
+
+```bash
+npm install -g @fukayatti0/discord-mcp-server
+```
+
+Or use it with `pnpx` (no global install required):
+
+```bash
+pnpx @fukayatti0/discord-mcp-server
+```
+
 ### Manual Installation
 
 1. **Clone the repository**:
 
-   ```bash
-   git clone https://github.com/fukayatti/discord-mcp-server.git
-   cd discord-mcp-server
-   ```
+```bash
+git clone https://github.com/fukayatti/discord-mcp-server.git
+cd discord-mcp-server
+```
 
 2. **Install dependencies**:
 
-   ```bash
-   npm install
-   # or
-   pnpm install
-   ```
+```bash
+npm install
+# or
+pnpm install
+```
 
 3. **Set up your Discord bot**:
 
@@ -78,8 +92,28 @@ A **Model Context Protocol (MCP)** server that provides comprehensive Discord in
 
 Edit your Claude Desktop configuration file:
 
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`  
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+#### Using pnpx (Recommended)
+
+If you installed via npm or want to use without global install, configure as follows:
+
+```json
+{
+  "mcpServers": {
+    "discord": {
+      "command": "pnpx",
+      "args": ["@fukayatti0/discord-mcp-server"],
+      "env": {
+        "DISCORD_TOKEN": "your_discord_token_here"
+      }
+    }
+  }
+}
+```
+
+#### Using local source
 
 ```json
 {
@@ -95,7 +129,7 @@ Edit your Claude Desktop configuration file:
 }
 ```
 
-For global installation:
+#### For global installation
 
 ```json
 {
@@ -210,8 +244,8 @@ discord-mcp-server/
 ├── src/
 │   └── server.js       # Main MCP server implementation
 ├── package.json        # Project configuration
-├── README.md          # Documentation
-└── .gitignore         # Git ignore rules
+├── README.md           # Documentation
+└── .gitignore          # Git ignore rules
 ```
 
 ## 🤝 Contributing
@@ -251,6 +285,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## 🔗 Links
 
 - **Repository**: [https://github.com/fukayatti/discord-mcp-server](https://github.com/fukayatti/discord-mcp-server)
+- **npm package**: [@fukayatti0/discord-mcp-server](https://www.npmjs.com/package/@fukayatti0/discord-mcp-server)
 - **Author**: [fukayatti](https://fukayatti0.dev/)
 - **MCP Documentation**: [Model Context Protocol](https://modelcontextprotocol.io/)
 - **Discord.js**: [https://discord.js.org/](https://discord.js.org/)
