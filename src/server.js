@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
-import { Client, GatewayIntentBits, ChannelType } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  ChannelType,
+  EmbedBuilder,
+  AttachmentBuilder,
+  PermissionFlagsBits,
+} from "discord.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -23,6 +30,12 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildEmojisAndStickers,
+    GatewayIntentBits.GuildWebhooks,
+    GatewayIntentBits.GuildInvites,
+    GatewayIntentBits.GuildScheduledEvents,
+    GatewayIntentBits.GuildModeration,
   ],
 });
 
@@ -311,6 +324,204 @@ const CategoryChannelsSchema = z.object({
     .describe("Server name or ID (optional if bot is only in one server)"),
   category: z.string().describe("Category name or ID"),
   limit: z.number().min(1).default(10).optional(),
+});
+
+// New schemas for additional functionality
+const CreateVoiceChannelSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  name: z.string().describe("Voice channel name"),
+  category_id: z
+    .string()
+    .optional()
+    .describe("Optional category ID to place channel in"),
+  user_limit: z
+    .number()
+    .min(0)
+    .max(99)
+    .optional()
+    .describe("User limit (0 for unlimited)"),
+  bitrate: z
+    .number()
+    .min(8000)
+    .max(384000)
+    .optional()
+    .describe("Bitrate in bps"),
+});
+
+const CreateThreadSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z.string().describe("Parent channel name or ID"),
+  name: z.string().describe("Thread name"),
+  message_id: z
+    .string()
+    .optional()
+    .describe("Message ID to create thread from (for message threads)"),
+  auto_archive_duration: z
+    .number()
+    .optional()
+    .describe("Auto archive duration in minutes (60, 1440, 4320, 10080)"),
+  private: z
+    .boolean()
+    .optional()
+    .describe("Create private thread (requires permissions)"),
+});
+
+const CreateRoleSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  name: z.string().describe("Role name"),
+  color: z
+    .string()
+    .optional()
+    .describe("Role color (hex color code like #FF0000)"),
+  hoist: z
+    .boolean()
+    .optional()
+    .describe("Display role separately in member list"),
+  mentionable: z
+    .boolean()
+    .optional()
+    .describe("Allow role to be mentioned by everyone"),
+  permissions: z
+    .array(z.string())
+    .optional()
+    .describe("Array of permission names"),
+});
+
+const SendEmbedSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z.string().describe("Channel name or ID"),
+  title: z.string().optional().describe("Embed title"),
+  description: z.string().optional().describe("Embed description"),
+  color: z.string().optional().describe("Embed color (hex color code)"),
+  thumbnail: z.string().optional().describe("Thumbnail image URL"),
+  image: z.string().optional().describe("Main image URL"),
+  author_name: z.string().optional().describe("Author name"),
+  author_icon: z.string().optional().describe("Author icon URL"),
+  footer_text: z.string().optional().describe("Footer text"),
+  footer_icon: z.string().optional().describe("Footer icon URL"),
+  fields: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        inline: z.boolean().optional(),
+      })
+    )
+    .optional()
+    .describe("Embed fields"),
+});
+
+const EditMessageSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z.string().describe("Channel name or ID"),
+  message_id: z.string().describe("Message ID to edit"),
+  content: z.string().optional().describe("New message content"),
+  embed: z
+    .object({
+      title: z.string().optional(),
+      description: z.string().optional(),
+      color: z.string().optional(),
+    })
+    .optional()
+    .describe("Embed data to add/update"),
+});
+
+const DeleteMessageSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z.string().describe("Channel name or ID"),
+  message_id: z.string().describe("Message ID to delete"),
+  reason: z.string().optional().describe("Reason for deletion"),
+});
+
+const CreateInviteSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z
+    .string()
+    .optional()
+    .describe("Channel for invite (defaults to system channel)"),
+  max_age: z
+    .number()
+    .optional()
+    .describe("Invite expiration in seconds (0 for never)"),
+  max_uses: z.number().optional().describe("Maximum uses (0 for unlimited)"),
+  temporary: z.boolean().optional().describe("Grant temporary membership"),
+  unique: z.boolean().optional().describe("Create unique invite"),
+});
+
+const ManageEmojiSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  name: z.string().describe("Emoji name"),
+  image_url: z.string().optional().describe("Image URL for creating emoji"),
+  emoji_id: z.string().optional().describe("Emoji ID for deleting emoji"),
+});
+
+const CreateWebhookSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z.string().describe("Channel name or ID"),
+  name: z.string().describe("Webhook name"),
+  avatar_url: z.string().optional().describe("Webhook avatar URL"),
+});
+
+const KickMemberSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  user_id: z.string().describe("User ID to kick"),
+  reason: z.string().optional().describe("Reason for kick"),
+});
+
+const BanMemberSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  user_id: z.string().describe("User ID to ban"),
+  reason: z.string().optional().describe("Reason for ban"),
+  delete_days: z
+    .number()
+    .min(0)
+    .max(7)
+    .optional()
+    .describe("Days of messages to delete (0-7)"),
+});
+
+const SendFileSchema = z.object({
+  server: z
+    .string()
+    .optional()
+    .describe("Server name or ID (optional if bot is only in one server)"),
+  channel: z.string().describe("Channel name or ID"),
+  file_url: z.string().describe("File URL to send"),
+  filename: z.string().optional().describe("Custom filename"),
+  content: z.string().optional().describe("Message content to send with file"),
 });
 
 // Initialize MCP server
@@ -760,6 +971,628 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["channel", "message_id", "reason"],
+        },
+      },
+
+      // Voice Channel Management
+      {
+        name: "create_voice_channel",
+        description:
+          "Create a new voice channel with custom settings like user limit and bitrate",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            name: {
+              type: "string",
+              description: "Voice channel name",
+            },
+            category_id: {
+              type: "string",
+              description: "Optional category ID to place channel in",
+            },
+            user_limit: {
+              type: "number",
+              description: "User limit (0 for unlimited)",
+              minimum: 0,
+              maximum: 99,
+            },
+            bitrate: {
+              type: "number",
+              description: "Bitrate in bps",
+              minimum: 8000,
+              maximum: 384000,
+            },
+          },
+          required: ["name"],
+        },
+      },
+
+      // Thread Management
+      {
+        name: "create_thread",
+        description:
+          "Create a new thread in a channel, either standalone or from a message",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Parent channel name or ID",
+            },
+            name: {
+              type: "string",
+              description: "Thread name",
+            },
+            message_id: {
+              type: "string",
+              description:
+                "Message ID to create thread from (for message threads)",
+            },
+            auto_archive_duration: {
+              type: "number",
+              description:
+                "Auto archive duration in minutes (60, 1440, 4320, 10080)",
+            },
+            private: {
+              type: "boolean",
+              description: "Create private thread (requires permissions)",
+            },
+          },
+          required: ["channel", "name"],
+        },
+      },
+
+      // Enhanced Role Management
+      {
+        name: "create_role",
+        description:
+          "Create a new role with custom permissions, color, and settings",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            name: {
+              type: "string",
+              description: "Role name",
+            },
+            color: {
+              type: "string",
+              description: "Role color (hex color code like #FF0000)",
+            },
+            hoist: {
+              type: "boolean",
+              description: "Display role separately in member list",
+            },
+            mentionable: {
+              type: "boolean",
+              description: "Allow role to be mentioned by everyone",
+            },
+            permissions: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              description: "Array of permission names",
+            },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "delete_role",
+        description: "Delete a role from the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            role_id: {
+              type: "string",
+              description: "Role ID to delete",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for deletion",
+            },
+          },
+          required: ["role_id"],
+        },
+      },
+      {
+        name: "list_roles",
+        description: "List all roles in the server with their permissions",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+          },
+        },
+      },
+
+      // Enhanced Message Features
+      {
+        name: "send_embed",
+        description:
+          "Send a rich embed message with title, description, fields, images, and more",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel name or ID",
+            },
+            title: {
+              type: "string",
+              description: "Embed title",
+            },
+            description: {
+              type: "string",
+              description: "Embed description",
+            },
+            color: {
+              type: "string",
+              description: "Embed color (hex color code)",
+            },
+            thumbnail: {
+              type: "string",
+              description: "Thumbnail image URL",
+            },
+            image: {
+              type: "string",
+              description: "Main image URL",
+            },
+            author_name: {
+              type: "string",
+              description: "Author name",
+            },
+            author_icon: {
+              type: "string",
+              description: "Author icon URL",
+            },
+            footer_text: {
+              type: "string",
+              description: "Footer text",
+            },
+            footer_icon: {
+              type: "string",
+              description: "Footer icon URL",
+            },
+            fields: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  value: { type: "string" },
+                  inline: { type: "boolean" },
+                },
+                required: ["name", "value"],
+              },
+              description: "Embed fields",
+            },
+          },
+          required: ["channel"],
+        },
+      },
+      {
+        name: "edit_message",
+        description: "Edit an existing message content or embed",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel name or ID",
+            },
+            message_id: {
+              type: "string",
+              description: "Message ID to edit",
+            },
+            content: {
+              type: "string",
+              description: "New message content",
+            },
+            embed: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                color: { type: "string" },
+              },
+              description: "Embed data to add/update",
+            },
+          },
+          required: ["channel", "message_id"],
+        },
+      },
+      {
+        name: "delete_message",
+        description: "Delete a specific message from a channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel name or ID",
+            },
+            message_id: {
+              type: "string",
+              description: "Message ID to delete",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for deletion",
+            },
+          },
+          required: ["channel", "message_id"],
+        },
+      },
+      {
+        name: "send_file",
+        description: "Send a file attachment to a channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel name or ID",
+            },
+            file_url: {
+              type: "string",
+              description: "File URL to send",
+            },
+            filename: {
+              type: "string",
+              description: "Custom filename",
+            },
+            content: {
+              type: "string",
+              description: "Message content to send with file",
+            },
+          },
+          required: ["channel", "file_url"],
+        },
+      },
+
+      // Invite Management
+      {
+        name: "create_invite",
+        description:
+          "Create an invite link for the server with custom settings",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel for invite (defaults to system channel)",
+            },
+            max_age: {
+              type: "number",
+              description: "Invite expiration in seconds (0 for never)",
+            },
+            max_uses: {
+              type: "number",
+              description: "Maximum uses (0 for unlimited)",
+            },
+            temporary: {
+              type: "boolean",
+              description: "Grant temporary membership",
+            },
+            unique: {
+              type: "boolean",
+              description: "Create unique invite",
+            },
+          },
+        },
+      },
+      {
+        name: "list_invites",
+        description: "List all active invites for the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+          },
+        },
+      },
+
+      // Emoji Management
+      {
+        name: "create_emoji",
+        description: "Create a custom emoji for the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            name: {
+              type: "string",
+              description: "Emoji name",
+            },
+            image_url: {
+              type: "string",
+              description: "Image URL for creating emoji",
+            },
+          },
+          required: ["name", "image_url"],
+        },
+      },
+      {
+        name: "delete_emoji",
+        description: "Delete a custom emoji from the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            emoji_id: {
+              type: "string",
+              description: "Emoji ID to delete",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for deletion",
+            },
+          },
+          required: ["emoji_id"],
+        },
+      },
+      {
+        name: "list_emojis",
+        description: "List all custom emojis in the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+          },
+        },
+      },
+
+      // Webhook Management
+      {
+        name: "create_webhook",
+        description: "Create a webhook for a channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel name or ID",
+            },
+            name: {
+              type: "string",
+              description: "Webhook name",
+            },
+            avatar_url: {
+              type: "string",
+              description: "Webhook avatar URL",
+            },
+          },
+          required: ["channel", "name"],
+        },
+      },
+      {
+        name: "list_webhooks",
+        description: "List all webhooks in the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+          },
+        },
+      },
+
+      // Advanced Moderation
+      {
+        name: "kick_member",
+        description: "Kick a member from the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            user_id: {
+              type: "string",
+              description: "User ID to kick",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for kick",
+            },
+          },
+          required: ["user_id"],
+        },
+      },
+      {
+        name: "ban_member",
+        description: "Ban a member from the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            user_id: {
+              type: "string",
+              description: "User ID to ban",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for ban",
+            },
+            delete_days: {
+              type: "number",
+              description: "Days of messages to delete (0-7)",
+              minimum: 0,
+              maximum: 7,
+            },
+          },
+          required: ["user_id"],
+        },
+      },
+      {
+        name: "unban_member",
+        description: "Unban a member from the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            user_id: {
+              type: "string",
+              description: "User ID to unban",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for unban",
+            },
+          },
+          required: ["user_id"],
+        },
+      },
+      {
+        name: "timeout_member",
+        description: "Put a member in timeout for a specified duration",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            user_id: {
+              type: "string",
+              description: "User ID to timeout",
+            },
+            duration_minutes: {
+              type: "number",
+              description: "Timeout duration in minutes",
+              minimum: 1,
+              maximum: 40320,
+            },
+            reason: {
+              type: "string",
+              description: "Reason for timeout",
+            },
+          },
+          required: ["user_id", "duration_minutes"],
+        },
+      },
+
+      // Channel Information
+      {
+        name: "list_channels",
+        description: "List all channels in the server organized by category",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            include_threads: {
+              type: "boolean",
+              description: "Include active threads in the list",
+            },
+          },
+        },
+      },
+      {
+        name: "get_channel_info",
+        description: "Get detailed information about a specific channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: {
+              type: "string",
+              description:
+                "Server name or ID (optional if bot is only in one server)",
+            },
+            channel: {
+              type: "string",
+              description: "Channel name or ID",
+            },
+          },
+          required: ["channel"],
         },
       },
     ],
@@ -1278,6 +2111,689 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Removed reaction ${emoji} from message in #${channelObj.name} in ${channelObj.guild.name}`,
+            },
+          ],
+        };
+      }
+
+      // Voice Channel Management
+      case "create_voice_channel": {
+        const { server, name, category_id, user_limit, bitrate } =
+          CreateVoiceChannelSchema.parse(args);
+        const guild = await findGuild(server);
+        const options = {
+          name: name,
+          type: ChannelType.GuildVoice,
+          reason: "Voice channel created via MCP",
+        };
+
+        if (category_id) {
+          options.parent = category_id;
+        }
+        if (user_limit !== undefined) {
+          options.userLimit = user_limit;
+        }
+        if (bitrate) {
+          options.bitrate = bitrate;
+        }
+
+        const channel = await guild.channels.create(options);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created voice channel "${channel.name}" (ID: ${channel.id}) in ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      // Thread Management
+      case "create_thread": {
+        const {
+          server,
+          channel,
+          name,
+          message_id,
+          auto_archive_duration,
+          private: isPrivate,
+        } = CreateThreadSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+
+        let thread;
+        if (message_id) {
+          // Create thread from message
+          const message = await channelObj.messages.fetch(message_id);
+          thread = await message.startThread({
+            name: name,
+            autoArchiveDuration: auto_archive_duration || 60,
+            reason: "Thread created via MCP",
+          });
+        } else {
+          // Create standalone thread
+          const options = {
+            name: name,
+            autoArchiveDuration: auto_archive_duration || 60,
+            reason: "Thread created via MCP",
+          };
+
+          if (isPrivate) {
+            options.type = ChannelType.PrivateThread;
+          }
+
+          thread = await channelObj.threads.create(options);
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created thread "${thread.name}" (ID: ${thread.id}) in #${channelObj.name}`,
+            },
+          ],
+        };
+      }
+
+      // Enhanced Role Management
+      case "create_role": {
+        const { server, name, color, hoist, mentionable, permissions } =
+          CreateRoleSchema.parse(args);
+        const guild = await findGuild(server);
+
+        const options = {
+          name: name,
+          reason: "Role created via MCP",
+        };
+
+        if (color) {
+          options.color = color;
+        }
+        if (hoist !== undefined) {
+          options.hoist = hoist;
+        }
+        if (mentionable !== undefined) {
+          options.mentionable = mentionable;
+        }
+        if (permissions && permissions.length > 0) {
+          // Convert permission names to flags
+          const permissionFlags = permissions.map((perm) => {
+            const flag = PermissionFlagsBits[perm];
+            if (!flag) {
+              throw new Error(`Unknown permission: ${perm}`);
+            }
+            return flag;
+          });
+          options.permissions = permissionFlags;
+        }
+
+        const role = await guild.roles.create(options);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created role "${role.name}" (ID: ${role.id}) in ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "delete_role": {
+        const { server, role_id, reason } = args;
+        const guild = await findGuild(server);
+        const role = await guild.roles.fetch(role_id);
+
+        if (!role) {
+          throw new Error(`Role with ID ${role_id} not found`);
+        }
+
+        const roleName = role.name;
+        await role.delete(reason || "Role deleted via MCP");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deleted role "${roleName}" from ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "list_roles": {
+        const guild = await findGuild(args.server);
+        const roles = Array.from(guild.roles.cache.values())
+          .filter((role) => role.name !== "@everyone")
+          .sort((a, b) => b.position - a.position)
+          .map((role) => ({
+            id: role.id,
+            name: role.name,
+            color: role.hexColor,
+            position: role.position,
+            members: role.members.size,
+            mentionable: role.mentionable,
+            hoist: role.hoist,
+            permissions: role.permissions.toArray(),
+          }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Roles in ${guild.name} (${roles.length}):\n` +
+                roles
+                  .map(
+                    (r) =>
+                      `${r.name} (ID: ${r.id}, Members: ${r.members}, Color: ${r.color}, Mentionable: ${r.mentionable})`
+                  )
+                  .join("\n"),
+            },
+          ],
+        };
+      }
+
+      // Enhanced Message Features
+      case "send_embed": {
+        const {
+          server,
+          channel,
+          title,
+          description,
+          color,
+          thumbnail,
+          image,
+          author_name,
+          author_icon,
+          footer_text,
+          footer_icon,
+          fields,
+        } = SendEmbedSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+
+        const embed = new EmbedBuilder();
+
+        if (title) embed.setTitle(title);
+        if (description) embed.setDescription(description);
+        if (color) embed.setColor(color);
+        if (thumbnail) embed.setThumbnail(thumbnail);
+        if (image) embed.setImage(image);
+        if (author_name) {
+          embed.setAuthor({
+            name: author_name,
+            iconURL: author_icon,
+          });
+        }
+        if (footer_text) {
+          embed.setFooter({
+            text: footer_text,
+            iconURL: footer_icon,
+          });
+        }
+        if (fields && fields.length > 0) {
+          embed.addFields(fields);
+        }
+
+        await channelObj.send({ embeds: [embed] });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Sent embed message to #${channelObj.name} in ${channelObj.guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "edit_message": {
+        const { server, channel, message_id, content, embed } =
+          EditMessageSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+        const message = await channelObj.messages.fetch(message_id);
+
+        const editOptions = {};
+        if (content !== undefined) {
+          editOptions.content = content;
+        }
+        if (embed) {
+          const embedBuilder = new EmbedBuilder();
+          if (embed.title) embedBuilder.setTitle(embed.title);
+          if (embed.description) embedBuilder.setDescription(embed.description);
+          if (embed.color) embedBuilder.setColor(embed.color);
+          editOptions.embeds = [embedBuilder];
+        }
+
+        await message.edit(editOptions);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Edited message in #${channelObj.name} in ${channelObj.guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "delete_message": {
+        const { server, channel, message_id, reason } =
+          DeleteMessageSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+        const message = await channelObj.messages.fetch(message_id);
+
+        await message.delete();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deleted message from #${channelObj.name} in ${channelObj.guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "send_file": {
+        const { server, channel, file_url, filename, content } =
+          SendFileSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+
+        const attachment = new AttachmentBuilder(file_url, {
+          name: filename || "file",
+        });
+
+        const messageOptions = { files: [attachment] };
+        if (content) {
+          messageOptions.content = content;
+        }
+
+        await channelObj.send(messageOptions);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Sent file to #${channelObj.name} in ${channelObj.guild.name}`,
+            },
+          ],
+        };
+      }
+
+      // Invite Management
+      case "create_invite": {
+        const { server, channel, max_age, max_uses, temporary, unique } =
+          CreateInviteSchema.parse(args);
+
+        let targetChannel;
+        if (channel) {
+          targetChannel = await findChannel(channel, server);
+        } else {
+          const guild = await findGuild(server);
+          targetChannel =
+            guild.systemChannel ||
+            guild.channels.cache.filter((c) => c.isTextBased()).first();
+          if (!targetChannel) {
+            throw new Error("No suitable channel found for invite");
+          }
+        }
+
+        const options = {};
+        if (max_age !== undefined) options.maxAge = max_age;
+        if (max_uses !== undefined) options.maxUses = max_uses;
+        if (temporary !== undefined) options.temporary = temporary;
+        if (unique !== undefined) options.unique = unique;
+
+        const invite = await targetChannel.createInvite(options);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created invite: ${invite.url}\nExpires: ${
+                max_age === 0 ? "Never" : `${max_age}s`
+              }\nMax uses: ${max_uses || "Unlimited"}`,
+            },
+          ],
+        };
+      }
+
+      case "list_invites": {
+        const guild = await findGuild(args.server);
+        const invites = await guild.invites.fetch();
+
+        const inviteList = Array.from(invites.values()).map((invite) => ({
+          code: invite.code,
+          url: invite.url,
+          channel: invite.channel?.name || "Unknown",
+          inviter: invite.inviter?.tag || "Unknown",
+          uses: invite.uses,
+          max_uses: invite.maxUses,
+          expires_at: invite.expiresAt
+            ? invite.expiresAt.toISOString()
+            : "Never",
+          temporary: invite.temporary,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Active invites for ${guild.name} (${inviteList.length}):\n` +
+                inviteList
+                  .map(
+                    (i) =>
+                      `${i.code} - #${i.channel} by ${i.inviter} (${i.uses}/${
+                        i.max_uses || "∞"
+                      } uses, expires: ${i.expires_at})`
+                  )
+                  .join("\n"),
+            },
+          ],
+        };
+      }
+
+      // Emoji Management
+      case "create_emoji": {
+        const { server, name, image_url } = ManageEmojiSchema.parse(args);
+        const guild = await findGuild(server);
+
+        const emoji = await guild.emojis.create({
+          attachment: image_url,
+          name: name,
+          reason: "Emoji created via MCP",
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created emoji :${emoji.name}: (ID: ${emoji.id}) in ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "delete_emoji": {
+        const { server, emoji_id, reason } = ManageEmojiSchema.parse(args);
+        const guild = await findGuild(server);
+        const emoji = await guild.emojis.fetch(emoji_id);
+
+        if (!emoji) {
+          throw new Error(`Emoji with ID ${emoji_id} not found`);
+        }
+
+        const emojiName = emoji.name;
+        await emoji.delete(reason || "Emoji deleted via MCP");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deleted emoji :${emojiName}: from ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "list_emojis": {
+        const guild = await findGuild(args.server);
+        const emojis = Array.from(guild.emojis.cache.values()).map((emoji) => ({
+          id: emoji.id,
+          name: emoji.name,
+          animated: emoji.animated,
+          url: emoji.url,
+          author: emoji.author?.tag || "Unknown",
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Custom emojis in ${guild.name} (${emojis.length}):\n` +
+                emojis
+                  .map(
+                    (e) => `:${e.name}: (ID: ${e.id}, Animated: ${e.animated})`
+                  )
+                  .join("\n"),
+            },
+          ],
+        };
+      }
+
+      // Webhook Management
+      case "create_webhook": {
+        const { server, channel, name, avatar_url } =
+          CreateWebhookSchema.parse(args);
+        const channelObj = await findChannel(channel, server);
+
+        const options = { name: name };
+        if (avatar_url) {
+          options.avatar = avatar_url;
+        }
+
+        const webhook = await channelObj.createWebhook(options);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created webhook "${webhook.name}" (ID: ${webhook.id}) for #${channelObj.name}\nURL: ${webhook.url}`,
+            },
+          ],
+        };
+      }
+
+      case "list_webhooks": {
+        const guild = await findGuild(args.server);
+        const webhooks = await guild.fetchWebhooks();
+
+        const webhookList = Array.from(webhooks.values()).map((webhook) => ({
+          id: webhook.id,
+          name: webhook.name,
+          channel: webhook.channel?.name || "Unknown",
+          owner: webhook.owner?.tag || "Unknown",
+          url: webhook.url,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Webhooks in ${guild.name} (${webhookList.length}):\n` +
+                webhookList
+                  .map((w) => `${w.name} - #${w.channel} (Owner: ${w.owner})`)
+                  .join("\n"),
+            },
+          ],
+        };
+      }
+
+      // Advanced Moderation
+      case "kick_member": {
+        const { server, user_id, reason } = KickMemberSchema.parse(args);
+        const guild = await findGuild(server);
+        const member = await guild.members.fetch(user_id);
+
+        const username = member.user.username;
+        await member.kick(reason || "Kicked via MCP");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Kicked ${username} from ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "ban_member": {
+        const { server, user_id, reason, delete_days } =
+          BanMemberSchema.parse(args);
+        const guild = await findGuild(server);
+
+        const options = {};
+        if (delete_days !== undefined) {
+          options.deleteMessageDays = delete_days;
+        }
+        if (reason) {
+          options.reason = reason;
+        }
+
+        const user = await client.users.fetch(user_id);
+        await guild.members.ban(user, options);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Banned ${user.username} from ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "unban_member": {
+        const { server, user_id, reason } = args;
+        const guild = await findGuild(server);
+        const user = await client.users.fetch(user_id);
+
+        await guild.members.unban(user, reason || "Unbanned via MCP");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Unbanned ${user.username} from ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      case "timeout_member": {
+        const { server, user_id, duration_minutes, reason } = args;
+        const guild = await findGuild(server);
+        const member = await guild.members.fetch(user_id);
+
+        const duration = duration_minutes * 60 * 1000; // Convert to milliseconds
+        await member.timeout(duration, reason || "Timed out via MCP");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Put ${member.user.username} in timeout for ${duration_minutes} minutes in ${guild.name}`,
+            },
+          ],
+        };
+      }
+
+      // Channel Information
+      case "list_channels": {
+        const { server, include_threads } = args;
+        const guild = await findGuild(server);
+
+        const categories = Array.from(guild.channels.cache.values())
+          .filter((channel) => channel.type === ChannelType.GuildCategory)
+          .sort((a, b) => a.position - b.position);
+
+        const uncategorized = Array.from(guild.channels.cache.values()).filter(
+          (channel) =>
+            !channel.parent &&
+            channel.type !== ChannelType.GuildCategory &&
+            (channel.isTextBased() || channel.type === ChannelType.GuildVoice)
+        );
+
+        let result = `Channels in ${guild.name}:\n\n`;
+
+        // List categorized channels
+        for (const category of categories) {
+          result += `📁 ${category.name}\n`;
+          const channelsInCategory = Array.from(
+            category.children.cache.values()
+          )
+            .filter((channel) => !channel.isThread())
+            .sort((a, b) => a.position - b.position);
+
+          for (const channel of channelsInCategory) {
+            const emoji = channel.type === ChannelType.GuildVoice ? "🔊" : "#";
+            result += `  ${emoji} ${channel.name}\n`;
+
+            if (include_threads && channel.isTextBased()) {
+              const threads = Array.from(channel.threads.cache.values());
+              for (const thread of threads) {
+                result += `    🧵 ${thread.name}\n`;
+              }
+            }
+          }
+          result += "\n";
+        }
+
+        // List uncategorized channels
+        if (uncategorized.length > 0) {
+          result += "📁 Uncategorized\n";
+          for (const channel of uncategorized) {
+            const emoji = channel.type === ChannelType.GuildVoice ? "🔊" : "#";
+            result += `  ${emoji} ${channel.name}\n`;
+
+            if (include_threads && channel.isTextBased()) {
+              const threads = Array.from(channel.threads.cache.values());
+              for (const thread of threads) {
+                result += `    🧵 ${thread.name}\n`;
+              }
+            }
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: result,
+            },
+          ],
+        };
+      }
+
+      case "get_channel_info": {
+        const { server, channel } = args;
+        const channelObj = await findChannel(channel, server);
+
+        const info = {
+          id: channelObj.id,
+          name: channelObj.name,
+          type: channelObj.type,
+          created_at: channelObj.createdAt.toISOString(),
+          nsfw: channelObj.nsfw,
+          position: channelObj.position,
+        };
+
+        if (channelObj.topic) info.topic = channelObj.topic;
+        if (channelObj.parent) info.category = channelObj.parent.name;
+        if (channelObj.type === ChannelType.GuildVoice) {
+          info.user_limit = channelObj.userLimit;
+          info.bitrate = channelObj.bitrate;
+        }
+        if (channelObj.isThread()) {
+          info.parent_channel = channelObj.parent?.name;
+          info.archived = channelObj.archived;
+          info.auto_archive_duration = channelObj.autoArchiveDuration;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Channel Information:\n` +
+                Object.entries(info)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join("\n"),
             },
           ],
         };
